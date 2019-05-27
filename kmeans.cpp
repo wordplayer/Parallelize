@@ -22,18 +22,30 @@ __global__ void kmeans(double *data, int *initial_clusters,
     }
 
     __syncthreads();
-
+    
     double min_dist = INFINITY;
+    
+    int numEachCluster[k];
+    for(int i=0; i<k; i++)
+        numEachCluster[i]=0;
+    
+    int means[k*DIMENSION];
+    for(int i=0; i<k*DIMENSION; i++)
+        means[i] = 0;
+    
     while(tid < TRAINING_SIZE){
+        
         double dist = 0;
         double curr_vector[DIMENSION];
         for(int i=0; i<DIMENSION; ++i){
             curr_vector[i] = data[tid*DIMENSION+i];
         }
+        
+        // Classify the data point into a cluster
         for(int i=0; i<k; ++i){
             for(int j=0; j<DIMENSION; ++j){
                 dist += (curr_vector[j] - temp[i*DIMENSION+j])
-                    *(curr_vector[j] - temp[i*DIMENSION+j]);
+                *(curr_vector[j] - temp[i*DIMENSION+j]);
             }
             if(dist<min_dist){
                 min_dist = dist;
@@ -41,10 +53,40 @@ __global__ void kmeans(double *data, int *initial_clusters,
                 distances[tid] = min_dist;
             }
         }
+        
+        // Update means
+        int cluster = clusters[tid];
+        numEachCluster[cluster]++;
+        int size = numEachCluster[cluster];
+        double mean[DIMENSION];
+        for(int i=0; i<DIMENSION; i++)
+            mean[i] = means[i+DIMENSION*cluster];
+        double * meanPtr = mean;
+        double * meanUpdate = updateMean(meanPtr, size, data);
+        
+        for(int i=DIMENSION*cluster; i<DIMENSION*(cluster+1); i++)
+        {
+            temp[i] = meanUpdate[i];
+        }
+        
         tid += stride;
+        
     }
-
 }
+
+
+double * updateMean(double * mean, int size, double * data)
+{
+    for(int i=0; i<DIMENSION; i++)
+    {
+        double m = mean[i];
+        m = (double)(m*(size-1) + data[i]) / (double)size;
+        mean[i] = m;
+    }
+    return mean;
+}
+
+
 
 void usage(char* program_name){
     cerr << program_name << " called with incorrect arguments." << endl;
