@@ -34,14 +34,15 @@ void read_MNIST(string filename, double* im_arr[]) {
 		file.read((char*)&n_cols, sizeof(n_cols));
 		n_cols = ReverseInt(n_cols);
 		int i = 0, n_threads = 0, tid = 0, index = 0;
-		
-#pragma omp parallel private(i, n_threads, tid) shared(index)
-		n_threads = omp_get_max_threads();
-		cout << "Max number of threads available: " << n_threads << endl;
 
+#pragma omp parallel private(i, n_threads, tid) shared(index){
 		tid = omp_get_thread_num();
-		cout << "Currently running thread #" << tid << endl;
-		for (int i = 0; i < 10; i++)
+		if (tid == 0) {
+			n_threads = omp_get_max_threads();
+			cout << "Max number of threads available: " << n_threads << "\n" << endl;
+		}
+		cout << "Currently running thread #" << tid << "\n" << endl;
+		for (; i < 10; i++)
 		{
 			if (index == number_of_images)
 				break;
@@ -52,6 +53,7 @@ void read_MNIST(string filename, double* im_arr[]) {
 					*im_arr[index++] = (double)temp;
 				}
 			}
+		}
 		}
 	}
 }
@@ -68,7 +70,7 @@ int main()
 		exit(-1);
 	}
 
-
+	cout << "Going to read file" << endl;
 	//read MNIST image into double vector
 	double* images[number_of_images*image_size];
 	read_MNIST(filename, images);
