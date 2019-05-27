@@ -6,16 +6,13 @@
 
 #define TRAINING_SIZE 10,000
 #define DIMENSION 784
-#define INFINITY std::numeric_limist<double>::max()
+#define INFINITY std::numeric_limits<double>::max()
 
-_global_ void kmeans(int *data, int *initial_clusters){
-    //TODO ZENAAAAAAAAAAAA this one's your part
-}
 
-__global___ void assign_clusters(int *data, int *initial_clusters, 
+__global__ void kmeans(double *data, int *initial_clusters, 
     int *clusters, double *distances, int k){
 
-    __shared__ int temp[BLOCK_SIZE]; //shared cluster center array
+    __shared__ int temp[BLOCK_SIZE]; //shared initial cluster array
 
     int gindex = threadIdx.x + blockDim.x*blockIdx.x;
     int stride = blockDim.x*gridDim.x;
@@ -29,7 +26,7 @@ __global___ void assign_clusters(int *data, int *initial_clusters,
     double min_dist = INFINITY;
     while(tid < TRAINING_SIZE){
         double dist = 0;
-        int curr_vector[DIMENSION];
+        double curr_vector[DIMENSION];
         for(int i=0; i<DIMENSION; ++i){
             curr_vector[i] = data[tid*DIMENSION+i];
         }
@@ -46,6 +43,7 @@ __global___ void assign_clusters(int *data, int *initial_clusters,
         }
         tid += stride;
     }
+
 }
 
 void usage(char* program_name){
@@ -60,8 +58,8 @@ int main(int argc, char** argv)
     char *filename;
     int h_data, h_labels, h_initial_clusters;
     //d_clusters is an N x N array
-    int *d_data, *d_labels, *d_initial_clusters, *d_clusters;
-    double *d_distances;
+    int *d_labels, *d_initial_clusters, *d_clusters;
+    double *d_distances, *d_data;
     int k = 10;
     int int_size = sizeof(int);
     int double_size = sizeof(double);
@@ -78,7 +76,7 @@ int main(int argc, char** argv)
     h_initial_clusters = *initial_vectors(&h_data, 10000*784, k);
 
     //Allocate global memory on device
-    cudaMalloc((void **)&d_data, int_size*TRAINING_SIZE*DIMENSION); //1D falttened array of data
+    cudaMalloc((void **)&d_data, double_size*TRAINING_SIZE*DIMENSION); //1D falttened array of data
     cudaMalloc((void **)&d_labels, int_size*TRAINING_SIZE); //1D array of data labels
     cudaMalloc((void **)&d_initial_clusters, int_size*k*DIMENSION); //1D array to keep track of cluster centers
     cudaMalloc((void **)&d_clusters, int_size*TRAINING_SIZE); //1D array of cluster assignments for each point
@@ -86,7 +84,7 @@ int main(int argc, char** argv)
     //TODO I think we will have to use a 2D array to keep track of clusters
 
     //Copy host values to device variables
-    cudaMemcpy(d_data, &h_data, int_size*TRAINING_SIZE*DIMENSION, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_data, &h_data, double_size*TRAINING_SIZE*DIMENSION, cudaMemcpyHostToDevice);
     cudaMemcpy(d_labels, &h_labels, int_size*TRAINING_SIZE, cudaMemcpyHostToDevice);
     cudaMemcpy(d_initial_clusters, &h_initial_clusters, int_size*k*DIMENSION, cudaMemcpyHostToDevice);
 
