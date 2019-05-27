@@ -1,9 +1,9 @@
 #include <omp.h>
 #include <math.h>
 #include <algorithm>
-#include <array>
 #include <iostream>
 #include <fstream>
+#include <string>
 
 using namespace std;
 
@@ -18,7 +18,7 @@ int ReverseInt(int i)
 }
 
 void read_MNIST(string filename, double* im_arr[]) {
-	ifstream file(filename, ios::binary);
+	ifstream file(filename.c_str(), ios::binary);
 
 	if (file.is_open()) {
 		int magic_number = 0;
@@ -33,9 +33,9 @@ void read_MNIST(string filename, double* im_arr[]) {
 		n_rows = ReverseInt(n_rows);
 		file.read((char*)&n_cols, sizeof(n_cols));
 		n_cols = ReverseInt(n_cols);
-		int i = 0, nthreads = 0, tid = 0;
+		int i = 0, n_threads = 0, tid = 0, index = 0;
 		
-#pragma omp parallel private(i) shared(index)
+#pragma omp parallel private(i, n_threads, tid) shared(index)
 		n_threads = omp_get_max_threads();
 		cout << "Max number of threads available: " << n_threads << endl;
 
@@ -46,7 +46,7 @@ void read_MNIST(string filename, double* im_arr[]) {
 			if (index == number_of_images)
 				break;
 			for (int j = 0; j < n_rows; j++) {
-				for (int k = 0; k < n_columns; k++) {
+				for (int k = 0; k < n_cols; k++) {
 					unsigned char temp = 0;
 					file.read((char*)&temp, sizeof(temp));
 					*im_arr[index++] = (double)temp;
@@ -61,7 +61,7 @@ int main()
 	string filename = "t10k-images.idx3-ubyte";
 	int number_of_images = 10000;
 	int image_size = 28 * 28;
-	ifstream file(filename, ios::binary);
+	ifstream file(filename.c_str(), ios::binary);
 	if (!file.is_open())
 	{
 		system("pwd");
