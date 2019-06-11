@@ -17,9 +17,7 @@ int ReverseInt(int i)
 	return((int)ch1 << 24) + ((int)ch2 << 16) + ((int)ch3 << 8) + ch4;
 }
 
-void read_MNIST(string filename, double* im_arr[]) {
-	ifstream file(filename.c_str(), ios::binary);
-        cout << sizeof(file) << "\n" << endl;
+void read_MNIST(ifstream& file, double* im_arr[]) {
 	if (file.is_open()) {
 		int magic_number = 0;
 		int number_of_images = 0;
@@ -50,8 +48,8 @@ void read_MNIST(string filename, double* im_arr[]) {
 				for (int k = 0; k < n_cols; k++) {
 					unsigned char temp = 0;
 					file.read((char*)&temp, sizeof(temp));
-					*im_arr[index] = (double)temp;
-					index++;
+					cout << "Index accessed: "<<(double)temp<< endl;
+					*im_arr[index++] = (double)temp;
 					cout << "Array updated!" << "\n" << endl;
 				}
 			}
@@ -73,9 +71,8 @@ int main()
 
 	cout << "Going to read file" << endl;
 	//read MNIST image into double vector
-        double* images[number_of_images*image_size];
-	cout << images[0] << "\n" << endl;
-	read_MNIST(filename, images);
+        double* images = new double[number_of_images*image_size];
+	read_MNIST(file, &images);
 	cout << "Parallelized the loading successfully!" << endl;
 
 	return 0;
