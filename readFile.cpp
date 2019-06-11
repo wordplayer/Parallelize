@@ -19,7 +19,7 @@ int ReverseInt(int i)
 
 void read_MNIST(string filename, double* im_arr[]) {
 	ifstream file(filename.c_str(), ios::binary);
-
+        cout << sizeof(file) << "\n" << endl;
 	if (file.is_open()) {
 		int magic_number = 0;
 		int number_of_images = 0;
@@ -35,7 +35,7 @@ void read_MNIST(string filename, double* im_arr[]) {
 		n_cols = ReverseInt(n_cols);
 		int i = 0, n_threads = 0, tid = 0, index = 0;
 
-#pragma omp parallel private(i, n_threads, tid) shared(index){
+#pragma omp parallel private(i, n_threads, tid) shared(index)
 		tid = omp_get_thread_num();
 		if (tid == 0) {
 			n_threads = omp_get_max_threads();
@@ -50,10 +50,11 @@ void read_MNIST(string filename, double* im_arr[]) {
 				for (int k = 0; k < n_cols; k++) {
 					unsigned char temp = 0;
 					file.read((char*)&temp, sizeof(temp));
-					*im_arr[index++] = (double)temp;
+					*im_arr[index] = (double)temp;
+					index++;
+					cout << "Array updated!" << "\n" << endl;
 				}
 			}
-		}
 		}
 	}
 }
@@ -72,7 +73,8 @@ int main()
 
 	cout << "Going to read file" << endl;
 	//read MNIST image into double vector
-	double* images[number_of_images*image_size];
+        double* images[number_of_images*image_size];
+	cout << images[0] << "\n" << endl;
 	read_MNIST(filename, images);
 	cout << "Parallelized the loading successfully!" << endl;
 
