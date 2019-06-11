@@ -16,10 +16,10 @@
 __global__ void kmeans(double *data, int *initial_clusters){
 
     __shared__ double temp[k*DIMENSION]; //shared cluster center data array
-    __shared__ double sum[k];
-    __shared__ double counts[k];
-    __shared__ double distances[NUM_THREADS];
-    __shared__ double distances_min[NUM_THREADS];
+    //zena __shared__ double sum[k];
+    //zena __shared__ double counts[k];
+    //zena __shared__ double distances[NUM_THREADS];
+    //zena __shared__ double distances_min[NUM_THREADS];
 
     int tid = threadIdx.x + blockDim.x*blockIdx.x; //index of a thread in the grid
 
@@ -27,30 +27,47 @@ __global__ void kmeans(double *data, int *initial_clusters){
     for(int i=threadIdx.x; i<k*DIMENSION; i += blockDim.x)
         temp[i] = iniitial_clusters[i];
 
+    /* zena
     if(threadIdx.x < k){
         sum[threadIdx.x] = 0;
         counts[threadIdx.x] = 0;
-    }
-
-    distances[threadIdx.x] = 0;
-    distances_min[threadIdx.x] = INFINITY;
+    }*/
+    
+    //zena distances[threadIdx.x] = 0;
+    //zena distances_min[threadIdx.x] = INFINITY;
 
     __syncthreads();
-
-
-
-    for(int iter=0; iter<1000; ++iter){
-        double curr_element;
-        for(int j=0; j<k; j++){
-            for(int i=tid*DIMENSION; i<DIMENSION; ++i){
-                distance[tid] += (data[i]-temp[j+i])*(data[i]-temp[j+i]);
+    
+    for(int iter=0; iter<1000; ++iter)
+    {
+        double min_dist = INFINITY;
+        if(tid < TRAINING_SIZE)
+        {
+            for(int j=0; j<k; j++)
+            {
+                double distance = 0;
+                for(int i=tid*DIMENSION; i<DIMENSION; ++i)
+                {
+                    distance += (data[i]-temp[j+i])*(data[i]-temp[j+i]);
+                }
+                if(distance < min_dist)
+                {
+                    min_dist = distance;
+                    d_clusters[tid] = j;
+                }
+            }
+            
+            int a_cluster = d_clusters[tid];
+            d_counts[a_cluster]++;
+            for(int s=0; s<DIMENSION; s++)
+            {
+                d_sum[s+a_cluster*DIMENSION] += data[tid+s];
             }
         }
-        
     }
 
 
-    while(tid < TRAINING_SIZE){ 
+    while(tid < TRAINING_SIZE){
         double dist = 0;
         double curr_vector[DIMENSION];
         for(int i=0; i<DIMENSION; ++i){
@@ -136,7 +153,7 @@ int main(int argc, char** argv)
     cudaMalloc((void **)&d_data, double_size*TRAINING_SIZE*DIMENSION); //1D falttened array of data (global memoryh)
     cudaMalloc((void **)&d_initial_clusters, int_size*k*DIMENSION); //1D array to keep track of cluster centers
     cudaMalloc((void **)&d_clusters, int_size*TRAINING_SIZE); //1D array of cluster assignments for each point
-    cudaMalloc((void **)&d_sum, double_size*k); //Keep track of sums for calculating means
+    cudaMalloc((void **)&d_sum, double_size*k*DIMENSION); //Keep track of sums for calculating means
     cudaMalloc((void **)&d_counts, double_size*k); //Keep track of counts of data points in each cluster
 
     //Copy host values to device variables
@@ -154,7 +171,6 @@ int main(int argc, char** argv)
     cudaFree(d_labels);
     cudaFree(d_initial_clusters);
     cudaFree(d_clusters);
-    cudaFree(d_distances);
 
     return 0;
 }
