@@ -4,37 +4,53 @@
 #include <iostream>
 #include <limits>
 
-#define TRAINING_SIZE 10,000
+#define TRAINING_SIZE 9984
 #define DIMENSION 784
 #define INFINITY std::numeric_limits<double>::max()
+#define NUM_BLOCKS 39
+#define NUM_THREADS 256 //recommended best number of threads according to CUDA manual
+#define k 10
 
 
-__global__ void kmeans(double *data, int *initial_clusters, 
-    int *clusters, double *distances, int k){
 
-    __shared__ int temp[BLOCK_SIZE]; //shared initial cluster array
+__global__ void kmeans(double *data, int *initial_clusters){
 
-    int gindex = threadIdx.x + blockDim.x*blockIdx.x;
-    int stride = blockDim.x*gridDim.x;
-    int tid = threadId.x;
-    if(tid < k){
-        temp[tid] = initial_clusters[tid];
+    __shared__ double temp[k*DIMENSION]; //shared cluster center data array
+    __shared__ double sum[k];
+    __shared__ double counts[k];
+    __shared__ double distances[NUM_THREADS];
+    __shared__ double distances_min[NUM_THREADS];
+
+    int tid = threadIdx.x + blockDim.x*blockIdx.x; //index of a thread in the grid
+
+    //Initialize shared memory
+    for(int i=threadIdx.x; i<k*DIMENSION; i += blockDim.x)
+        temp[i] = iniitial_clusters[i];
+
+    if(threadIdx.x < k){
+        sum[threadIdx.x] = 0;
+        counts[threadIdx.x] = 0;
     }
 
+    distances[threadIdx.x] = 0;
+    distances_min[threadIdx.x] = INFINITY;
+
     __syncthreads();
-    
-    double min_dist = INFINITY;
-    
-    int numEachCluster[k];
-    for(int i=0; i<k; i++)
-        numEachCluster[i]=0;
-    
-    int means[k*DIMENSION];
-    for(int i=0; i<k*DIMENSION; i++)
-        means[i] = 0;
-    
-    while(tid < TRAINING_SIZE){
+
+
+
+    for(int iter=0; iter<1000; ++iter){
+        double curr_element;
+        for(int j=0; j<k; j++){
+            for(int i=tid*DIMENSION; i<DIMENSION; ++i){
+                distance[tid] += (data[i]-temp[j+i])*(data[i]-temp[j+i]);
+            }
+        }
         
+    }
+
+
+    while(tid < TRAINING_SIZE){ 
         double dist = 0;
         double curr_vector[DIMENSION];
         for(int i=0; i<DIMENSION; ++i){
@@ -101,8 +117,7 @@ int main(int argc, char** argv)
     int h_data, h_labels, h_initial_clusters;
     //d_clusters is an N x N array
     int *d_labels, *d_initial_clusters, *d_clusters;
-    double *d_distances, *d_data;
-    int k = 10;
+    double *d_distance, *d_data;
     int int_size = sizeof(int);
     int double_size = sizeof(double);
     
@@ -118,19 +133,18 @@ int main(int argc, char** argv)
     h_initial_clusters = *initial_vectors(&h_data, 10000*784, k);
 
     //Allocate global memory on device
-    cudaMalloc((void **)&d_data, double_size*TRAINING_SIZE*DIMENSION); //1D falttened array of data
-    cudaMalloc((void **)&d_labels, int_size*TRAINING_SIZE); //1D array of data labels
+    cudaMalloc((void **)&d_data, double_size*TRAINING_SIZE*DIMENSION); //1D falttened array of data (global memoryh)
     cudaMalloc((void **)&d_initial_clusters, int_size*k*DIMENSION); //1D array to keep track of cluster centers
     cudaMalloc((void **)&d_clusters, int_size*TRAINING_SIZE); //1D array of cluster assignments for each point
-    cudaMalloc((void **)&d_distances, double_size*k); //1D array keeps track of sums of distances of each point in cluster to cluster center
-    //TODO I think we will have to use a 2D array to keep track of clusters
+    cudaMalloc((void **)&d_sum, double_size*k); //Keep track of sums for calculating means
+    cudaMalloc((void **)&d_counts, double_size*k); //Keep track of counts of data points in each cluster
 
     //Copy host values to device variables
     cudaMemcpy(d_data, &h_data, double_size*TRAINING_SIZE*DIMENSION, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_labels, &h_labels, int_size*TRAINING_SIZE, cudaMemcpyHostToDevice);
     cudaMemcpy(d_initial_clusters, &h_initial_clusters, int_size*k*DIMENSION, cudaMemcpyHostToDevice);
 
     //TODO kernel function goes here
+    kmeans<<d_data, d_initial_clusters>>
 
     //TODO We need to copy the cluster vector (or 2D matrix?) back to the host
     cudaMemcpy()
