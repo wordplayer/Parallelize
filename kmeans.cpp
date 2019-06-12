@@ -14,7 +14,7 @@
 
 
 
-__global__ void kmeans(double *data, int *initial_clusters, int *d_sum, int *d_counts){
+__global__ void kmeans(double *data, double *initial_clusters, double *d_sum, int *d_counts, int *d_clusters){
 
     __shared__ double temp[k*DIMENSION]; //shared cluster center data array
     //zena __shared__ double sum[k];
@@ -26,7 +26,7 @@ __global__ void kmeans(double *data, int *initial_clusters, int *d_sum, int *d_c
 
     //Initialize shared memory
     for(int i=threadIdx.x; i<k*DIMENSION; i += blockDim.x)
-        temp[i] = iniitial_clusters[i];
+        temp[i] = initial_clusters[i];
 
     /* zena
     if(threadIdx.x < k){
@@ -115,11 +115,11 @@ void usage(char* program_name){
 int main(int argc, char** argv)
 {
     //char *filename;
-    int h_labels[TRAINING_SIZE], h_counts[k];
+    int h_labels[TRAINING_SIZE], h_counts[k], h_clusters[TRAINING_SIZE];
     double *h_initial_clusters;
     double h_data[TRAINING_SIZE*DIMENSION], h_sum[k*DIMENSION];
 
-    int *d_counts;
+    int *d_counts, *d_clusters;
     double *d_data, *d_sum, *d_initial_clusters;
     int int_size = sizeof(int);
     int double_size = sizeof(double);
@@ -158,22 +158,27 @@ int main(int argc, char** argv)
     {
         h_counts[i] = 0;
     }
+    for(int i=0; i<TRAINING_SIZE; ++i)
+    {
+        h_clusters[i] = 0;
+    }
 
     //Allocate global memory on device
     cudaMalloc((void **)&d_data, double_size*TRAINING_SIZE*DIMENSION); //1D falttened array of data (global memoryh)
     cudaMalloc((void **)&d_initial_clusters, double_size*k*DIMENSION); //1D array to keep track of cluster centers
     cudaMalloc((void **)&d_sum, double_size*k*DIMENSION); //Keep track of sums for calculating means
     cudaMalloc((void **)&d_counts, int_size*k); //Keep track of counts of data points in each cluster
+    cudaMalloc((void **)&d_clusters, int_size*TRAINING_SIZE); //Keep track of cluster assignments for each data point
 
     //Copy host values to device variables
     cudaMemcpy(d_data, &h_data, double_size*TRAINING_SIZE*DIMENSION, cudaMemcpyHostToDevice);
     cudaMemcpy(d_initial_clusters, h_initial_clusters, double_size*k*DIMENSION, cudaMemcpyHostToDevice);
     cudaMemcpy(d_sum, &h_sum, double_size*k*DIMENSION, cudaMemcpyHostToDevice);
     cudaMemcpy(d_counts, &h_counts, int_size*k, cudaMemcpyHostToDevice);
-
+    cudaMemcpy(d_clusters, &h_clusters, int_size*TRAINING_SIZE, cudaMemcpyHostToDevice);
 
     //TODO kernel function goes here
-    kmeans<<d_data, d_initial_clusters, d_sum, d_counts>>
+    kmeans<<<39, 256>>>(d_data, d_initial_clusters, d_sum, d_counts, d_clusters);
 
     //TODO We need to copy the cluster vector back to the host
     cudaMemcpy(h_initial_clusters, d_initial_clusters, int_size*k*DIMENSION, cudaMemcpyDeviceToHost);
@@ -183,6 +188,6 @@ int main(int argc, char** argv)
     cudaFree(d_initial_clusters);
     cudaFree(d_sum);
     cudaFree(d_counts);
-
+    cudaFree(d_clusters);
     return 0;
 }
