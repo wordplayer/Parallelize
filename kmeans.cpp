@@ -1,15 +1,16 @@
-#include "init.hpp"
-#include "readMNIST.cpp"
+//#include "init.hpp"
+//#include "readMNIST.cpp"
 #include <stdlib.h>
 #include <iostream>
 #include <limits>
 
-#define TRAINING_SIZE 9984
-#define DIMENSION 784
+#define TRAINING_SIZE 20
+#define DIMENSION 2
+#define k 1
 #define INFINITY std::numeric_limits<double>::max()
 #define NUM_BLOCKS 39
 #define NUM_THREADS 256 //recommended best number of threads according to CUDA manual
-#define k 10
+
 
 
 
@@ -114,9 +115,9 @@ void usage(char* program_name){
 int main(int argc, char** argv)
 {
     //char *filename;
-    int h_labels, h_counts[k];
+    int h_labels[TRAINING_SIZE], h_counts[k];
     double *h_initial_clusters;
-    double h_data, h_sum[k*DIMENSION];
+    double h_data[TRAINING_SIZE*DIMENSION], h_sum[k*DIMENSION];
 
     int *d_counts;
     double *d_data, *d_sum, *d_initial_clusters;
@@ -131,9 +132,23 @@ int main(int argc, char** argv)
         k = atoi(argv[2]);
     }*/
 
-    read_Mnist(filename, &h_data); //TODO BOOOOSE you'll have to make it so that we can input an array instead of vector
-    read_Mnist_Label(filename, &h_labels); //TODO same with this one
-    h_initial_clusters = initial_vectors(&h_data, 10000*784, k);
+    //Will uncomment these for the final product
+    //read_Mnist(filename, &h_data); //TODO BOOOOSE you'll have to make it so that we can input an array instead of vector
+    //read_Mnist_Label(filename, &h_labels); //TODO same with this one
+    //h_initial_clusters = initial_vectors(&h_data, 10000*784, k);
+
+    //Test cases
+    //Training size = 10
+    //Dimension = 2
+    //k = 1
+    for(int i = 0; i<20; ++i)
+    {
+        h_data[i] = 11%i;
+    }
+    double c[2] = {1,2};
+    h_initial_clusters = c;
+
+
 
     for(int i=0; i<k*DIMENSION; ++i)
     {
