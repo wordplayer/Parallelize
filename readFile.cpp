@@ -17,9 +17,7 @@ int ReverseInt(int i)
 	return((int)ch1 << 24) + ((int)ch2 << 16) + ((int)ch3 << 8) + ch4;
 }
 
-void read_MNIST(string filename, double* im_arr[]) {
-	ifstream file(filename.c_str(), ios::binary);
-        cout << sizeof(file) << "\n" << endl;
+void read_MNIST(ifstream& file, double* im_arr[]) {
 	if (file.is_open()) {
 		int magic_number = 0;
 		int number_of_images = 0;
@@ -35,30 +33,32 @@ void read_MNIST(string filename, double* im_arr[]) {
 		n_cols = ReverseInt(n_cols);
 		int i = 0, n_threads = 0, tid = 0, index = 0;
 
-#pragma omp parallel private(i, n_threads, tid) shared(index)
+#pragma omp parallel private(n_threads, tid)
+{
 		tid = omp_get_thread_num();
 		if (tid == 0) {
 			n_threads = omp_get_max_threads();
 			cout << "Max number of threads available: " << n_threads << "\n" << endl;
 		}
 		cout << "Currently running thread #" << tid << "\n" << endl;
+		#pragma omp parallel for private(i) shared(index)
 		for (; i < 10; i++)
 		{
 			if (index == number_of_images)
-				break;
+				return;
 			for (int j = 0; j < n_rows; j++) {
 				for (int k = 0; k < n_cols; k++) {
 					unsigned char temp = 0;
 					file.read((char*)&temp, sizeof(temp));
-					*im_arr[index] = (double)temp;
-					index++;
+					cout << "Index accessed: "<<(double)temp<< endl;
+					*im_arr[index++] = (double)temp;
 					cout << "Array updated!" << "\n" << endl;
 				}
 			}
 		}
 	}
 }
-
+}
 int main()
 {
 	string filename = "t10k-images.idx3-ubyte";
@@ -73,9 +73,8 @@ int main()
 
 	cout << "Going to read file" << endl;
 	//read MNIST image into double vector
-        double* images[number_of_images*image_size];
-	cout << images[0] << "\n" << endl;
-	read_MNIST(filename, images);
+        double* images = new double[number_of_images*image_size];
+	read_MNIST(file, &images);
 	cout << "Parallelized the loading successfully!" << endl;
 
 	return 0;
