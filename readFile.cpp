@@ -41,21 +41,22 @@ void read_MNIST(ifstream& file, double* im_arr[]) {
 			cout << "Max number of threads available: " << n_threads << "\n" << endl;
 		}
 		cout << "Currently running thread #" << tid << "\n" << endl;
+		while (index < number_of_images){
 		#pragma omp parallel for private(i) shared(index)
-		for (; i < 10; i++)
-		{
-			if (index == number_of_images)
-				return;
-			for (int j = 0; j < n_rows; j++) {
-				for (int k = 0; k < n_cols; k++) {
-					unsigned char temp = 0;
-					file.read((char*)&temp, sizeof(temp));
-					cout << "Index accessed: "<<(double)temp<< endl;
-					*im_arr[index++] = (double)temp;
-					cout << "Array updated!" << "\n" << endl;
+			for (; i < 10; i++)
+			{
+				for (int j = 0; j < n_rows; j++) {
+					for (int k = 0; k < n_cols; k++) {
+						unsigned char temp = 0;
+						file.read((char*)&temp, sizeof(temp));
+						cout << "Index accessed: " << (double)temp << endl;
+						*im_arr[index++] = (double)temp;
+						cout << "Array updated!" << "\n" << endl;
+					}
 				}
 			}
 		}
+		
 	}
 }
 }
