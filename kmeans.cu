@@ -8,7 +8,6 @@
 #define TRAINING_SIZE 20
 #define DIMENSION 2
 #define k 2
-//#define INFINITY std::numeric_limits<double>::max()
 #define INFINITY 0x7ff0000000000000
 #define NUM_BLOCKS 39
 #define NUM_THREADS 256 //recommended best number of threads according to CUDA manual
@@ -36,26 +35,11 @@ __device__ double atomicAdd(double* address, double val)
 
 __global__ void kmeans(double *data, double *initial_clusters, double *d_sum, int *d_counts, int *d_clusters){
     __shared__ double temp[k*DIMENSION]; //shared cluster center data array
-    //zena __shared__ double sum[k];
-    //zena __shared__ double counts[k];
-    //zena __shared__ double distances[NUM_THREADS];
-    //zena __shared__ double distances_min[NUM_THREADS];
-
     int tid = threadIdx.x + blockDim.x*blockIdx.x; //index of a thread in the grid
 
     //Initialize shared memory
     for(int i=threadIdx.x; i<k*DIMENSION; i += blockDim.x)
         temp[i] = initial_clusters[i];
-
-    /* zena
-    if(threadIdx.x < k){
-        sum[threadIdx.x] = 0;
-        counts[threadIdx.x] = 0;
-    }*/
-    
-    //zena distances[threadIdx.x] = 0;
-    //zena distances_min[threadIdx.x] = INFINITY;
-
     __syncthreads();
     
     if(tid < TRAINING_SIZE){
