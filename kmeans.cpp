@@ -104,13 +104,13 @@ __global__ void kmeans(double *data, int *initial_clusters, int *d_sum, int *d_c
     }
 }
 
-
+/*
 void usage(char* program_name){
     cerr << program_name << " called with incorrect arguments." << endl;
     cerr << "Usage: " << program_name
         << " data_filename num_clusters" << endl;
     exit(-1);
-}
+}*/
 
 int main(int argc, char** argv)
 {
