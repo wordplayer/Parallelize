@@ -3,10 +3,11 @@
 #include <stdlib.h>
 #include <iostream>
 #include <limits>
+#include <stdio.h>
 
 #define TRAINING_SIZE 20
 #define DIMENSION 2
-#define k 1
+#define k 2
 //#define INFINITY std::numeric_limits<double>::max()
 #define INFINITY 0x7ff0000000000000
 #define NUM_BLOCKS 39
@@ -58,6 +59,7 @@ __global__ void kmeans(double *data, double *initial_clusters, double *d_sum, in
     __syncthreads();
     
     if(tid < TRAINING_SIZE){
+	printf("THREAD NUMBER %d ENTERING\n", tid);
         for(int iter=0; iter<1000; ++iter)
         {
             double min_dist = INFINITY;
@@ -159,15 +161,14 @@ int main(int argc, char** argv)
     //h_initial_clusters = initial_vectors(&h_data, 10000*784, k);
 
     //Test cases
-    //Training size = 10
+    //Training size = 20
     //Dimension = 2
-    //k = 1
-    for(int i = 1; i<11; ++i)
+    //k = 2
+    for(int i = 0; i<20; ++i)
     {
-        h_data[i-1] = i;
-        h_data[i+9] = i+10;
+        h_data[i] = i;
     }
-    double c[2] = {1,2};
+    double c[4] = {1,3,2,5};
     h_initial_clusters = c;
 
 
@@ -200,7 +201,9 @@ int main(int argc, char** argv)
     cudaMemcpy(d_clusters, &h_clusters, int_size*TRAINING_SIZE, cudaMemcpyHostToDevice);
 
     //TODO kernel function goes here
+    std::cout << "Entering kernel." << std::endl;
     kmeans<<<39, 256>>>(d_data, d_initial_clusters, d_sum, d_counts, d_clusters);
+    std::cout << "Kernel left." << std::endl;
 
     //TODO We need to copy the cluster vector back to the host
     cudaMemcpy(h_initial_clusters, d_initial_clusters, int_size*k*DIMENSION, cudaMemcpyDeviceToHost);
@@ -211,5 +214,10 @@ int main(int argc, char** argv)
     cudaFree(d_sum);
     cudaFree(d_counts);
     cudaFree(d_clusters);
+
+    for(int i=0; i<DIMENSION*k; ++i)
+    {
+        std::cout << h_initial_clusters[i] << " ";
+    }
     return 0;
 }
