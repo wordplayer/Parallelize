@@ -7,15 +7,33 @@
 #define TRAINING_SIZE 20
 #define DIMENSION 2
 #define k 1
-#define INFINITY std::numeric_limits<double>::max()
+//#define INFINITY std::numeric_limits<double>::max()
+#define INFINITY 0x7ff0000000000000
 #define NUM_BLOCKS 39
 #define NUM_THREADS 256 //recommended best number of threads according to CUDA manual
 
 
+/*Need to include this since atomicAdd doesn't support doubles. Got from the 
+ * Cuda Documentation. */
+__device__ double atomicAdd(double* address, double val)
+{
+    unsigned long long int* address_as_ull =
+                              (unsigned long long int*)address;
+    unsigned long long int old = *address_as_ull, assumed;
 
+    do {
+        assumed = old;
+        old = atomicCAS(address_as_ull, assumed,
+                        __double_as_longlong(val +
+                               __longlong_as_double(assumed)));
+
+    // Note: uses integer comparison to avoid hang in case of NaN (since NaN != NaN)
+    } while (assumed != old);
+    
+    return __longlong_as_double(old);
+}
 
 __global__ void kmeans(double *data, double *initial_clusters, double *d_sum, int *d_counts, int *d_clusters){
-
     __shared__ double temp[k*DIMENSION]; //shared cluster center data array
     //zena __shared__ double sum[k];
     //zena __shared__ double counts[k];
@@ -104,6 +122,8 @@ __global__ void kmeans(double *data, double *initial_clusters, double *d_sum, in
     }
 }
 
+
+
 /*
 void usage(char* program_name){
     cerr << program_name << " called with incorrect arguments." << endl;
@@ -111,6 +131,7 @@ void usage(char* program_name){
         << " data_filename num_clusters" << endl;
     exit(-1);
 }*/
+
 
 int main(int argc, char** argv)
 {
