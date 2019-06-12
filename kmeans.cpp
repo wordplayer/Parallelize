@@ -13,7 +13,7 @@
 
 
 
-__global__ void kmeans(double *data, int *initial_clusters){
+__global__ void kmeans(double *data, int *initial_clusters, int *d_sum, int *d_counts){
 
     __shared__ double temp[k*DIMENSION]; //shared cluster center data array
     //zena __shared__ double sum[k];
@@ -38,18 +38,29 @@ __global__ void kmeans(double *data, int *initial_clusters){
 
     __syncthreads();
     
-    for(int iter=0; iter<1000; ++iter)
-    {
-        double min_dist = INFINITY;
-        if(tid < TRAINING_SIZE)
+    if(tid < TRAINING_SIZE){
+        for(int iter=0; iter<1000; ++iter)
         {
-            for(int j=0; j<k; j++)
+            double min_dist = INFINITY;
+            /*Initialize a vector for this thread that wills store the data point that this thread
+            is calculating a distance for. (aditya)*/
+            double data_vector[DIMENSION];
+            for(int i=0; i<DIMENSION; ++i)
             {
+                data_vector[i] = data[(DIMENSION*tid)+i];
+            }
+
+            for(int j=0; j<k; ++j)
+            {
+                /*Calculate distance from data point to centroid j one coordinate at a time. */
                 double distance = 0;
                 for(int i=tid*DIMENSION; i<DIMENSION; ++i)
                 {
-                    distance += (data[i]-temp[j+i])*(data[i]-temp[j+i]);
+                    distance += (data_vector[i]-temp[j*DIMENSION+i])*(data_vector[i]-temp[j*DIMENSION+i]);
                 }
+
+                /*If distance from data point to centroid j is less than current min_dist,
+                update min_dist and assign data point to centroid j in d_clusters (global memory). */
                 if(distance < min_dist)
                 {
                     min_dist = distance;
@@ -57,68 +68,40 @@ __global__ void kmeans(double *data, int *initial_clusters){
                 }
             }
             
-            int a_cluster = d_clusters[tid];
-            d_counts[a_cluster]++;
+            int assigned_cluster = d_clusters[tid];
+            //d_counts[assigned_cluster]++;
+            atomicAdd(&(d_counts[assigned_cluster]), 1);
+
             for(int s=0; s<DIMENSION; s++)
             {
-                d_sum[s+a_cluster*DIMENSION] += data[tid+s];
+                //d_sum[s+assigned_cluster*DIMENSION] += data[tid+s];
+                atomicAdd(&(d_sum[s+assigned_cluster*DIMENSION]), data[tid+s]);
             }
+            __syncthreads();
+
+            /*Reassign cluster centers */
+            if(tid < k*DIMENSION)
+            {
+                //tid%DIMENSION gives the correct k to divide by
+                temp[tid] = d_sum[tid] / d_counts[(tid%DIMENSION)];
+            }
+
+            /*Reinitialize d_sum and d_counts */
+            if(tid < k*DIMENSION)
+            {
+                d_sum[tid] = 0;
+                if(tid < k) d_counts[tid] = 0;
+            }
+            __syncthreads();
         }
     }
 
-
-    while(tid < TRAINING_SIZE){
-        double dist = 0;
-        double curr_vector[DIMENSION];
-        for(int i=0; i<DIMENSION; ++i){
-            curr_vector[i] = data[tid*DIMENSION+i];
-        }
-        
-        // Classify the data point into a cluster
-        for(int i=0; i<k; ++i){
-            for(int j=0; j<DIMENSION; ++j){
-                dist += (curr_vector[j] - temp[i*DIMENSION+j])
-                *(curr_vector[j] - temp[i*DIMENSION+j]);
-            }
-            if(dist<min_dist){
-                min_dist = dist;
-                clusters[tid] = i;
-                distances[tid] = min_dist;
-            }
-        }
-        
-        // Update means
-        int cluster = clusters[tid];
-        numEachCluster[cluster]++;
-        int size = numEachCluster[cluster];
-        double mean[DIMENSION];
-        for(int i=0; i<DIMENSION; i++)
-            mean[i] = means[i+DIMENSION*cluster];
-        double * meanPtr = mean;
-        double * meanUpdate = updateMean(meanPtr, size, data);
-        
-        for(int i=DIMENSION*cluster; i<DIMENSION*(cluster+1); i++)
-        {
-            temp[i] = meanUpdate[i];
-        }
-        
-        tid += stride;
-        
-    }
-}
-
-
-double * updateMean(double * mean, int size, double * data)
-{
-    for(int i=0; i<DIMENSION; i++)
+    /*Copy cluster centers from temp to initial_clusters */
+    if(tid < k*DIMENSION)
     {
-        double m = mean[i];
-        m = (double)(m*(size-1) + data[i]) / (double)size;
-        mean[i] = m;
+        initial_clusters[tid] = temp[tid];
     }
-    return mean;
 }
-
 
 
 void usage(char* program_name){
@@ -130,47 +113,61 @@ void usage(char* program_name){
 
 int main(int argc, char** argv)
 {
-    char *filename;
-    int h_data, h_labels, h_initial_clusters;
-    //d_clusters is an N x N array
-    int *d_labels, *d_initial_clusters, *d_clusters;
-    double *d_distance, *d_data;
+    //char *filename;
+    int h_labels, h_counts[k];
+    double *h_initial_clusters;
+    double h_data, h_sum[k*DIMENSION];
+
+    int *d_counts;
+    double *d_data, *d_sum, *d_initial_clusters;
     int int_size = sizeof(int);
     int double_size = sizeof(double);
     
+    /*
     if(argc==1 || argc>3) {usage(argv[0]);}
     if(argc==2) {filename = argv[1];}
     if(argc==3) {
         filename = argv[1];
         k = atoi(argv[2]);
-    }
+    }*/
 
     read_Mnist(filename, &h_data); //TODO BOOOOSE you'll have to make it so that we can input an array instead of vector
     read_Mnist_Label(filename, &h_labels); //TODO same with this one
-    h_initial_clusters = *initial_vectors(&h_data, 10000*784, k);
+    h_initial_clusters = initial_vectors(&h_data, 10000*784, k);
+
+    for(int i=0; i<k*DIMENSION; ++i)
+    {
+        h_sum[i] = 0;
+    } 
+    for(int i=0; i<k; ++i)
+    {
+        h_counts[i] = 0;
+    }
 
     //Allocate global memory on device
     cudaMalloc((void **)&d_data, double_size*TRAINING_SIZE*DIMENSION); //1D falttened array of data (global memoryh)
-    cudaMalloc((void **)&d_initial_clusters, int_size*k*DIMENSION); //1D array to keep track of cluster centers
-    cudaMalloc((void **)&d_clusters, int_size*TRAINING_SIZE); //1D array of cluster assignments for each point
+    cudaMalloc((void **)&d_initial_clusters, double_size*k*DIMENSION); //1D array to keep track of cluster centers
     cudaMalloc((void **)&d_sum, double_size*k*DIMENSION); //Keep track of sums for calculating means
-    cudaMalloc((void **)&d_counts, double_size*k); //Keep track of counts of data points in each cluster
+    cudaMalloc((void **)&d_counts, int_size*k); //Keep track of counts of data points in each cluster
 
     //Copy host values to device variables
     cudaMemcpy(d_data, &h_data, double_size*TRAINING_SIZE*DIMENSION, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_initial_clusters, &h_initial_clusters, int_size*k*DIMENSION, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_initial_clusters, h_initial_clusters, double_size*k*DIMENSION, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_sum, &h_sum, double_size*k*DIMENSION, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_counts, &h_counts, int_size*k, cudaMemcpyHostToDevice);
+
 
     //TODO kernel function goes here
-    kmeans<<d_data, d_initial_clusters>>
+    kmeans<<d_data, d_initial_clusters, d_sum, d_counts>>
 
-    //TODO We need to copy the cluster vector (or 2D matrix?) back to the host
-    cudaMemcpy()
+    //TODO We need to copy the cluster vector back to the host
+    cudaMemcpy(h_initial_clusters, d_initial_clusters, int_size*k*DIMENSION, cudaMemcpyDeviceToHost);
 
     //Deallocate memory
     cudaFree(d_data);
-    cudaFree(d_labels);
     cudaFree(d_initial_clusters);
-    cudaFree(d_clusters);
+    cudaFree(d_sum);
+    cudaFree(d_counts);
 
     return 0;
 }

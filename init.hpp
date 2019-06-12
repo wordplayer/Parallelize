@@ -13,8 +13,8 @@
  * vec1_index, vec2_index - the starting indices in data of two vectors
  */
 
-double distance(int *data, int *cluster, int vec1_index, int vec2_index){
-    int vec1[DIMENSION], vec2[DIMENSION];
+double distance(double *data, double *cluster, int vec1_index, int vec2_index){
+    double vec1[DIMENSION], vec2[DIMENSION];
     std::copy(data+vec1_index,data+vec1_index+DIMENSION, vec1);
     std::copy(cluster+vec2_index,cluster+vec2_index+DIMENSION, vec2);
     double sum = 0;
@@ -24,9 +24,9 @@ double distance(int *data, int *cluster, int vec1_index, int vec2_index){
     return sum;
 }
 
-int* initial_vectors(int *data, int size, int k){
+double *initial_vectors(double *data, int size, int k){
     srand(time(NULL)); //seed rng
-    int c[k*DIMENSION]; //initialize vector of cluster centers
+    double c[k*DIMENSION]; //initialize vector of cluster centers
     int num_samples = size/DIMENSION;
     int i, j;
 
