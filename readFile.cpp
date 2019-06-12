@@ -41,11 +41,11 @@ void read_MNIST(ifstream& file, double* im_arr[]) {
 			cout << "Max number of threads available: " << n_threads << "\n" << endl;
 		}
 		cout << "Currently running thread #" << tid << "\n" << endl;
-		#pragma omp for private(i) shared(index)
+		#pragma omp parallel for private(i) shared(index)
 		for (; i < 10; i++)
 		{
 			if (index == number_of_images)
-				break;
+				return;
 			for (int j = 0; j < n_rows; j++) {
 				for (int k = 0; k < n_cols; k++) {
 					unsigned char temp = 0;
