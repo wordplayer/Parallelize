@@ -33,13 +33,15 @@ void read_MNIST(ifstream& file, double* im_arr[]) {
 		n_cols = ReverseInt(n_cols);
 		int i = 0, n_threads = 0, tid = 0, index = 0;
 
-#pragma omp parallel private(i, n_threads, tid) shared(index)
+#pragma omp parallel private(n_threads, tid)
+{
 		tid = omp_get_thread_num();
 		if (tid == 0) {
 			n_threads = omp_get_max_threads();
 			cout << "Max number of threads available: " << n_threads << "\n" << endl;
 		}
 		cout << "Currently running thread #" << tid << "\n" << endl;
+		#pragma omp for private(i) shared(index)
 		for (; i < 10; i++)
 		{
 			if (index == number_of_images)
@@ -56,7 +58,7 @@ void read_MNIST(ifstream& file, double* im_arr[]) {
 		}
 	}
 }
-
+}
 int main()
 {
 	string filename = "t10k-images.idx3-ubyte";
