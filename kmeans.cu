@@ -44,7 +44,7 @@ __global__ void kmeans(double *data, double *initial_clusters, double *d_sum, in
     
     if(tid < TRAINING_SIZE){
 	printf("THREAD NUMBER %d ENTERING\n", tid);
-        for(int iter=0; iter<1000; ++iter)
+        for(int iter=0; iter<10; ++iter)
         {
             double min_dist = INFINITY;
             /*Initialize a vector for this thread that wills store the data point that this thread
@@ -148,14 +148,20 @@ int main(int argc, char** argv)
     //Training size = 20
     //Dimension = 2
     //k = 2
+    std::cout << "Test data: " << std::endl;
     for(int i = 0; i<20; ++i)
     {
         h_data[i] = i;
+        std::cout << h_data[i] << " ";
     }
+    std::cout << std::endl << "Initial centroids [" << k << "]" << std::endl;
     double c[4] = {1,3,2,5};
     h_initial_clusters = c;
-
-
+    for(int i=0; i<4; ++i)
+    {
+        std::cout << h_initial_clusters[i] << " ";
+    }
+    std::cout << std::endl;
 
     for(int i=0; i<k*DIMENSION; ++i)
     {
