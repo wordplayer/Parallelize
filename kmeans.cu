@@ -1,5 +1,5 @@
-//#include "init.hpp"
-//#include "readMNIST.cpp"
+#include "init.hpp"
+#include "readFile.cpp"
 #include <stdlib.h>
 #include <iostream>
 #include <limits>
@@ -43,7 +43,6 @@ __global__ void kmeans(double *data, double *initial_clusters, double *d_sum, in
     __syncthreads();
     
     if(tid < TRAINING_SIZE){
-	printf("THREAD NUMBER %d ENTERING\n", tid);
         for(int iter=0; iter<10; ++iter)
         {
             double min_dist = INFINITY;
@@ -109,16 +108,6 @@ __global__ void kmeans(double *data, double *initial_clusters, double *d_sum, in
 }
 
 
-
-/*
-void usage(char* program_name){
-    cerr << program_name << " called with incorrect arguments." << endl;
-    cerr << "Usage: " << program_name
-        << " data_filename num_clusters" << endl;
-    exit(-1);
-}*/
-
-
 int main(int argc, char** argv)
 {
     //char *filename;
@@ -131,37 +120,9 @@ int main(int argc, char** argv)
     int int_size = sizeof(int);
     int double_size = sizeof(double);
     
-    /*
-    if(argc==1 || argc>3) {usage(argv[0]);}
-    if(argc==2) {filename = argv[1];}
-    if(argc==3) {
-        filename = argv[1];
-        k = atoi(argv[2]);
-    }*/
-
-    //Will uncomment these for the final product
-    //read_Mnist(filename, &h_data); //TODO BOOOOSE you'll have to make it so that we can input an array instead of vector
-    //read_Mnist_Label(filename, &h_labels); //TODO same with this one
-    //h_initial_clusters = initial_vectors(&h_data, 10000*784, k);
-
-    //Test cases
-    //Training size = 20
-    //Dimension = 2
-    //k = 2
-    std::cout << "Test data: " << std::endl;
-    for(int i = 0; i<20; ++i)
-    {
-        h_data[i] = i;
-        std::cout << h_data[i] << " ";
-    }
-    std::cout << std::endl << "Initial centroids [" << k << "]" << std::endl;
-    double c[4] = {1,3,2,5};
-    h_initial_clusters = c;
-    for(int i=0; i<4; ++i)
-    {
-        std::cout << h_initial_clusters[i] << " ";
-    }
-    std::cout << std::endl;
+    read_MNIST(filename, &h_data); //TODO BOOOOSE you'll have to make it so that we can input an array instead of vector
+    read_Mnist_Label(filename, &h_labels); //TODO same with this one
+    h_initial_clusters = initial_vectors(&h_data, 10000*784, k);
 
     for(int i=0; i<k*DIMENSION; ++i)
     {
