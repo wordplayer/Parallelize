@@ -52,8 +52,8 @@ void read_MNIST(ifstream& file, double* im_arr[]) {
 		
 	}
 }
-int main()
-{
+double* loadFile()
+{ // Loads samples from the MNIST dataset
 	string filename = "t10k-images.idx3-ubyte";
 	int number_of_images = 10000;
 	int image_size = 28 * 28;
@@ -70,5 +70,5 @@ int main()
 	read_MNIST(file, &images);
 	cout << "Parallelized the loading successfully!" << endl;
 	cout << images[1000] << endl;
-	return 0;
+	return images;
 }
